@@ -12,6 +12,7 @@
    please take a look at the "dummy_data.parq" file in the repo (try to run a demo with this file)
 8. upload the file and you'll get redircted to other path, please open it.
   ("file uploaded successfully, please enter in few moments: http://127.0.0.1:5001/thr_view/dummy_data_thr_0_p-1")
+  * if its a big data then it might take a while .. you can see the progress printing in pycharm console.
 9. that's it! now you can see the graph, to enter sub graph just click on a node and get deeper.
 
 10. to view the RAW dataframe of each node and it's cluster, put a breaking point in row num 159 in vgg_graph_2.py and "links_df" is your dataframe with all of the data :)
