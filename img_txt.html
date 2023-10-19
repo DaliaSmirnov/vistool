@@ -1,0 +1,566 @@
+<html>
+
+<head>
+  <script src="http://unpkg.com/force-graph"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vistool by Blue dot</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .SaveBottun {
+      border: none;
+      border-radius: 5px;
+      background-color: #1c87c9;
+      color: white;
+      padding: 14px 20px;
+      cursor: pointer;
+    }
+
+    .dropdown-check-list .anchor {
+      border: none;
+      border-radius: 5px;
+      background-color: #1c87c9;
+      color: white;
+      padding: 14px 20px;
+      cursor: pointer;
+      font-size: 14px;
+
+    }
+
+    .dropdown-check-list ul.items {
+      padding: 15px;
+      display: none;
+      margin: 3;
+      /* border: 1px solid #ccc; */
+      border-top: none;
+      width: 180;
+      height: 250;
+      overflow: auto;
+    }
+
+    .dropdown-check-list ul.items li {
+      list-style: none;
+    }
+
+    .dropdown-check-list.visible .items {
+      display: block;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .openBtn {
+      display: flex;
+      justify-content: left;
+    }
+
+    .openButton {
+      border: none;
+      border-radius: 5px;
+      background-color: #1c87c9;
+      color: white;
+      padding: 14px 20px;
+      cursor: pointer;
+    }
+
+    .new_graph_pop {
+      position: relative;
+      text-align: center;
+      width: 100%;
+    }
+
+    .formPopup {
+      display: none;
+      position: fixed;
+      left: 45%;
+      top: 5%;
+      transform: translate(-50%, 5%);
+      border: 3px solid #999999;
+      z-index: 9;
+    }
+
+    .formContainer {
+      max-width: 300px;
+      padding: 20px;
+      background-color: #fff;
+    }
+
+    .formContainer input[type=text] {
+      width: 40%;
+      padding: 4px;
+      border: none;
+      box-sizing: border-box;
+      border: 3px solid #ccc;
+      background: #eee;
+    }
+
+    .formContainer input[type=text]:focus {
+      background-color: #ddd;
+      outline: none;
+    }
+
+    .formContainer .btn {
+      padding: 12px 20px;
+      border: none;
+      background-color: #8ebf42;
+      color: #fff;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 15px;
+      opacity: 0.8;
+    }
+
+    .formContainer .cancel {
+      background-color: #cc0000;
+    }
+
+    .formContainer .btn:hover,
+    .openButton:hover {
+      opacity: 1;
+    }
+
+    .checkbox {
+      position: absolute;
+      bottom: 0px;
+      right: 0px;
+    }
+
+    .collapsible {
+      background-color: #000000;
+      color: white;
+      padding: 7px 10px;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 12px;
+      border-radius: 5px;
+    }
+
+    .content {
+      display: none;
+      overflow: hidden;
+      background-color: #dedede;
+      font-size: 12px;
+    }
+
+    .sidenav {
+      height: 100%;
+      width: 160px;
+      position: fixed;
+      z-index: 1;
+      top: 0;
+      left: 0;
+      background-color: #dedede;
+      overflow-x: hidden;
+      padding-top: 20px;
+    }
+
+    .main {
+      margin-left: 160px;
+      font-size: 12px;
+      padding: 0px 10px;
+    }
+  </style>
+</head>
+
+<script>
+  var metadata_path = '/js/DATANAME_metadata.json'
+
+  fetch(metadata_path).then(res => res.json()).then(data => {
+    metadata = data
+  });
+
+</script>
+
+<div class="sidenav">
+  <div id="select_nodes" class="dropdown-check-list" tabindex="100">
+    <span class="anchor">Hide Nodes</span>
+    <ul class="items">
+      <input id="test" type="button" value="Add labels filters" onclick="create_labels_checkbox()" />
+      <div class="content">
+        <ul class="items">
+          <div id="labels_filters"></div>
+        </ul>
+      </div><br>
+      <br>
+      <input type="submit" class="btn" value="filter" onclick="filter_nodes()"><br>
+    </ul>
+  </div> <br>
+
+
+  <div id="stats"> xyz </div>
+  <br>
+  <div> <input type="text" id="user_nodesname" placeholder="Nodes name...">
+    <input id="new_nodesname" type="button" value="Submit Selection" onclick="reset_nodesname(user_nodesname.value)" />
+    <input id="savecsv" type="button" value="Save Selected Nodes" onclick="download_csv()" />
+  </div>
+  <br>
+  <div>
+    degree filter:<input type="text" id="degreeNumber" name="degree">
+    <input type="submit" class="btn" onclick="filter_degree()"><br>
+  </div>
+</div>
+
+
+
+<a id="downloadAnchorElem" style="display:none"></a>
+
+
+<div id="graph"></div>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
+<script>
+  var img_path = '/js/PATH_img.json'
+  var img_data = null
+  var node_pos = {}
+  var server_data = null
+  var dict = new Object;
+  let selectedNodes = new Array();
+
+  var checkList = document.getElementById('select_nodes');
+  checkList.getElementsByClassName('anchor')[0].onclick = function (evt) {
+    if (checkList.classList.contains('visible'))
+      checkList.classList.remove('visible');
+    else
+      checkList.classList.add('visible');
+  }
+
+
+  fetch(img_path).then(res => res.json()).then(data => {
+    img_data = data
+    var path = '/js/PATH.json'
+
+    fetch(path).then(res => res.json()).then(data => {
+      setupGraph(data)
+    });
+  });
+
+  // search nodes in graph
+  // function search_nodes() {
+  // var Graph = null
+  // document.getElementById("clickMeId").onclick = function(){
+  //   var my_text_elem = document.getElementById("my_text");
+  //   var my_text_value = my_text_elem.value
+  //   graph_data = Graph.graphData();
+  //   Graph.centerAt(graph_data['nodes'][node_pos[my_text_value]].x, graph_data['nodes'][node_pos[my_text_value]].y, 1000);
+  //   Graph.zoom(20, 1000);
+  // }
+
+  // };
+
+
+
+  // Create Graph
+  function setupGraph(data) {
+    data['nodes'].forEach((k, i) => {
+      data['nodes'][i]['img'] = i
+      data['nodes'][i]['img_name'] = img_data[data['nodes'][i]['id']]
+      data['nodes'][i]['new_img'] = null
+      node_pos[data['nodes'][i]['id']] = i
+    });
+    document.getElementById("stats").innerHTML = ("nodes = " + data['nodes'].length)
+    const elem = document.getElementById('graph');
+    Graph = ForceGraph()(elem)
+      .graphData(data)
+      .enableNodeDrag(true)
+      .linkWidth(2)
+      .enablePointerInteraction(true)
+      .onNodeClick((node, event) => {
+        if (event.ctrlKey || event.shiftKey) {
+          selectedNodes.push(node.id);
+        } else if (event.altKey) {
+          window.open("https://backoffice.bluedotcorp.com/imaginary-view?id=" + node.id);
+        } else {
+          Graph.centerAt(node.x, node.y, 1000);
+          Graph.zoom(8, 2000);
+          q = document.URL
+          var part_id_1 = node.part + ''
+          var part_id_2 = part_id_1.split('_')[0]
+          var url = q + 'p' + part_id_2
+          window.open(url);
+        }
+      })
+      .nodeCanvasObject(({ img, x, y }, ctx) => {
+        const size = 16;
+        Graph.getGraphBbox()
+        screen_cords = Graph.graph2ScreenCoords(x, y)
+        graph_data = Graph.graphData();
+
+        var new_img = graph_data['nodes'][img]['new_img']
+        var img_name = graph_data['nodes'][img]['img_name']
+
+        if (img_name != '/img/None') {
+          if (new_img == null) {
+            new_img = new Image();
+            graph_data['nodes'][img]['img_loaded'] = false
+            new_img.onload = function () {
+              graph_data['nodes'][img]['img_loaded'] = true
+            };
+            new_img.src = graph_data['nodes'][img]['img_name']
+            graph_data['nodes'][img]['new_img'] = new_img
+          }
+        }
+
+        ctx.beginPath();
+        ctx.lineWidth = "1";
+        part = graph_data['nodes'][img]['part']
+        const colors_list = ['#81F59A', '#6E894F', '#1E0260', '#AD63DC', '#2EDB52', '#79E4FD', '#D7DBDB', '#D7FBCE', '#9CCB6C', '#73DA0A', '#8205BB', '#8334A6', '#F4FE6E', '#1BB9E2', '#E03B50', '#4ED0AF', '#593258', '#8B458B', '#1A4292', '#B2DFCE', '#FD7625', '#1D7BA4', '#0324FA', '#F69D4D', '#5D7321', '#59396A', '#58F82E', '#CD9A09', '#7D0470', '#87A321', '#0319B2', '#0131DA', '#564D42', '#168D6C', '#FB5208', '#451201', '#5755EC', '#2B0BA6', '#E93A18', '#69796F', '#5E190E', '#BC7224', '#4EA04D', '#36C0C5', '#8196E8', '#D03EC5', '#42B696', '#23317D', '#598008', '#F26E59', '#9C4CBA', '#ED017C', '#8635C8', '#FCABDF', '#A02BB0', '#8ABF90', '#391BF0', '#44DFA5', '#B263FC', '#166F43', '#AA065C', '#7E0243', '#4CBDC0', '#507604', '#A473BB', '#869C7B', '#08EE75', '#1C5B69', '#9A69D3', '#4A588E', '#8757D1', '#C3BD26', '#3DBD5B', '#07B4DF', '#A6D973', '#AB231E', '#88220F', '#453E50', '#6E6107', '#341DC0', '#E2B19E', '#17E6AA', '#3E87DB', '#74AB56', '#762C0C', '#3DA1CA', '#B5827B', '#21ED9C', '#328885', '#443C51', '#C47BAA', '#AA3428', '#6D2090', '#7AE364', '#D458A9', '#D20652', '#0806E6', '#581300', '#DB9B6E', '#0518E6', '#893783', '#2C4A00', '#172595', '#3DA6BB', '#7BC80B', '#9CE1C3', '#60F9AB', '#30AEA4', '#EC1044', '#787F2B', '#DAEF30', '#66EA80', '#A90A15', '#9EF5DA', '#FE6D98', '#2A349F', '#BDF089', '#97EB1C', '#734A9B', '#9D0189', '#3A3635', '#2B24BE', '#C9C52B', '#DF571E', '#7F1EF0', '#7C56B3', '#B6F53B', '#ECF49A', '#B24076', '#E04877', '#394536', '#C004F6', '#01D38A', '#331D85', '#BE565B', '#5E5361', '#C6A124', '#59A06C', '#9C086C', '#0E14B7', '#05D264', '#475D9C', '#485C62', '#432474', '#206108', '#67EE6F', '#DB57C3', '#016A65', '#7B4BE2', '#BA4796', '#DE8955', '#06F83E', '#5F3BEE', '#79C43F', '#76E537', '#8304A2', '#B9E9F0', '#B58ED6', '#3EC6F4', '#05D26B', '#A98B9E', '#E3133F', '#7035EC', '#A17E17', '#B1BDB6', '#C2EEE9', '#24A6DB', '#57624F', '#5E551B', '#73B39E', '#386AFC', '#9BAC6A', '#E74DBB', '#40D7A3', '#212C84', '#AB805A', '#CA9382', '#4084CA', '#26D627', '#B25AA8', '#8E53D9', '#D930D0', '#AB053A', '#28EBAF', '#519684', '#872827', '#39C29F', '#E0C929', '#944318', '#FCBEA7', '#E1FD33', '#590614', '#90ABA4', '#EB27F6', '#463360', '#764C1B', '#E146F0', '#64F1E7', '#878152', '#0923EB', '#2CA504', '#8A4F6A', '#3EF5B7', '#04DB09', '#B5F131', '#0CF7A5', '#E49149', '#48B623', '#85F09A', '#2288FB', '#BC079F', '#2409F3', '#EA56C7', '#FA9335', '#BC6560', '#A43E8B', '#4AF107', '#0E6130', '#DC64C1', '#5D66A3', '#C06A8E', '#CF3109', '#F373CF', '#EFFE10', '#5CDCA9', '#A5097E', '#9D39C5', '#E25FD9', '#7B23B0', '#9E356D', '#85AD61', '#20DEA7', '#B549A5', '#B3E1B1']
+        ctx.strokeStyle = colors_list[part - 1]
+        label = graph_data['nodes'][img]['label']
+
+
+        var dict = metadata['dict_labels_and_colors']
+
+        // Style settings for each type of node
+        if (label == 'id') {
+          if (graph_data['nodes'][img]['img_loaded']) {
+            ctx.drawImage(new_img, x - size / 2, y - size / 2, size, size);
+          }
+          ctx.rect(x - size / 2, y - size / 2, size, size);
+          ctx.stroke();
+          ctx.fillStyle = "black"
+          ctx.font = "1px Arial";
+          ctx.fillText(graph_data['nodes'][img]['id'], x - size / 3, y - size / 2);
+          ctx.fillText("part:" + graph_data['nodes'][img]['part'], x - size / 3, y - size / 2.25);
+        } else {
+          for (var key in dict) {
+            if (label == key) {
+              ctx.fillStyle = dict[key]
+              ctx.font = "bold 4px Arial";
+              ctx.fillText(graph_data['nodes'][img]['id'], x - size / 6, y - size / 20)
+            }
+          };
+        }
+      })
+
+  };
+
+  // download csv file of the json of current sub-graph
+  function download_csv() {
+    var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dict));
+    var dlAnchorElem = document.getElementById('downloadAnchorElem');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", "nodes.json");
+    dlAnchorElem.click();
+  }
+
+  // json URL
+  function open_json() {
+    let json_url = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dict))
+    var newWin = open(json_url, 'windowName', 'height=300,width=300');
+  }
+
+  // once user saves a group of selected nodes, it will restart
+  function reset_nodesname(nodes_name) {
+    dict[nodes_name] = selectedNodes;
+    user_nodesname.value = '';
+    selectedNodes = []
+  }
+
+  // save checked labels
+  function create_filter_list(mylst) {
+    const labels_list = Object.keys(metadata['labels'])
+    labels_list.push('id')
+    var labels_list_len = labels_list.length
+    for (var i = 0; i < labels_list_len; i++){
+      var filtername = 'filter_' + labels_list[i];
+      if(eval(filtername).checked){
+        mylst.push(labels_list[i])
+      }
+    }
+    return mylst;
+  }
+
+  function create_id_filter_list(mylst) {
+    for (row of Object.values(dict)) for (item of row) mylst.push(item);
+  }
+
+  // draw the filtered graph
+  function filter_nodes() {
+    // id's of labels
+    let ids_list = new Set([]);
+    ids_list = get_ids_from_labels();
+
+    // ids of *checked* words
+    // const words_list = get_words()
+    // let checked_words = get_checked_words(words_list)
+
+    // ids of checked user selection
+    // if (Object.keys(dict).length != 0){
+    //   let selection_ids = get_checked_selection()
+    // }
+
+    let selection_ids = get_checked_selection()
+
+    // ids_list = ids_list.concat(checked_words)
+    ids_list = ids_list.concat(selection_ids)
+
+    // filter nodes
+    var filtered_nodes = graph_data['nodes'].filter(function (value, index, arr) {
+      return (ids_list.includes(value.id));
+    })
+    graph_data['nodes'] = filtered_nodes
+
+    // filter links
+    var filtered_links = graph_data['links'].filter(function (value, index, arr) {
+      return ((ids_list.includes(value.target.id) & (ids_list.includes(value.source.id))));
+    })
+    graph_data['links'] = filtered_links
+    setupGraph(graph_data);
+  }
+
+
+  function getKeys(dict, num) {
+    const arr = [],
+      obj = Object.keys(dict);
+    for (var x in obj) {
+      if (dict[obj[x]] <= num) {
+        arr.push(obj[x]);
+      }
+    }
+    return arr;
+  }
+
+  function filter_degree() {
+    var degree_number = degreeNumber.value
+    ids_list = getKeys(graph_data['degree'], degree_number)
+
+    var filtered_nodes = graph_data['nodes'].filter(function (value, index, arr) {
+      return (ids_list.includes(value.id));
+    })
+    graph_data['nodes'] = filtered_nodes
+
+    // filter links
+    var filtered_links = graph_data['links'].filter(function (value, index, arr) {
+      return ((ids_list.includes(value.target.id) & (ids_list.includes(value.source.id))));
+    })
+    graph_data['links'] = filtered_links
+    setupGraph(graph_data);
+  }
+
+  // add custom user seletion features
+  function create_user_checkbox() {
+    var keys_len = Object.keys(dict).length
+    for (var i = 0; i < keys_len; i++) {
+      var x = document.createElement("INPUT");
+      var label = document.createElement("label")
+      var filter_name = Object.keys(dict)[i]
+      var linebreak = document.createElement("br");
+      x.setAttribute("type", "checkbox");
+      x.setAttribute("id", "filter_user_" + filter_name);
+      x.setAttribute("value", "filter_user_" + filter_name);
+      x.setAttribute("name", "filter_user_" + filter_name);
+      user_filters.appendChild(x);
+      label.appendChild(document.createTextNode(filter_name));
+      user_filters.appendChild(label);
+      words_filters.appendChild(linebreak);
+    }
+  }
+
+  // collapse checkbox list settings
+  var coll = document.getElementsByClassName("collapsible");
+  var i;
+  for (i = 0; i < coll.length; i++) {
+    coll[i].addEventListener("click", function () {
+      this.classList.toggle("active");
+      var content = this.nextElementSibling;
+      if (content.style.display === "block") {
+        content.style.display = "none";
+      } else {
+        content.style.display = "block";
+      }
+    });
+  }
+
+
+  function get_words() {
+    const words_list = metadata['labels']['breakdown']
+    return words_list;
+  }
+
+  // get the checked words by user for filtering
+  function get_checked_words(words_list) {
+    let checked_words = [];
+    for (var i = 0; i < words_list.length; i++) {
+      var filter_name = words_list[i]
+      var element = document.getElementById("filter_word_" + filter_name)
+      if (element.checked) {
+        checked_words.push(filter_name)
+      }
+    }
+    return checked_words;
+  }
+
+  // get the ids of user selections
+  function get_checked_selection() {
+    let checked_user_selection = [];
+    for (var i = 0; i < Object.keys(dict).length; i++) {
+      var filter_name = Object.keys(dict)[i]
+      var element = document.getElementById("filter_user_" + filter_name)
+      if (element.checked) {
+        checked_user_selection.push(Object.values(dict[filter_name]))
+      }
+    }
+    return checked_user_selection[0];
+  }
+
+  // get a list of id's of user's chosen labels
+  function get_ids_from_labels() {
+    let filter_list = [];
+    filter_list = create_filter_list(filter_list);
+    const ids_list = []
+    for (var i = 0; i < graph_data['nodes'].length; i++) {
+      // let filter_label = filter_list[i];
+      let item = graph_data['nodes'][i]['id']
+      if (filter_list.includes(graph_data['nodes'][i]['label'])) {
+        ids_list.push(item)
+      }
+    }
+    return ids_list;
+  }
+
+  // build a checkbox list based on labels from graph
+
+  function create_labels_checkbox() {
+    const labels_list = Object.keys(metadata['labels'])
+    labels_list.push('id')
+    var labels_list_len = labels_list.length
+    for (var i = 0; i < labels_list_len; i++) {
+      var x = document.createElement("INPUT");
+      var label = document.createElement("label")
+      var filter_name = labels_list[i]
+      var linebreak = document.createElement("br");
+      x.setAttribute("type", "checkbox");
+      x.setAttribute("id", "filter_" + filter_name);
+      x.setAttribute("value", "filter_" + filter_name);
+      x.setAttribute("name", "filter_" + filter_name);
+      select_nodes.appendChild(x);
+      label.appendChild(document.createTextNode(filter_name));
+      select_nodes.appendChild(label);
+      select_nodes.appendChild(linebreak);
+    }
+  }
+
+  // Open popup form
+  function openForm(formName) {
+    document.getElementById(formName).style.display = "block";
+  }
+
+  // Close popupform
+  function closeForm(formName) {
+    document.getElementById(formName).style.display = "none";
+  }
+
+
+
+</script>
+</body>
+
+</html>

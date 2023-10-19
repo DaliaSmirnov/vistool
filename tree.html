@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Semantic Tree</title>
+    <style>
+     .node circle {
+       fill: #fff;
+       stroke: steelblue;
+       stroke-width: 3px;
+     }
+     .node text { font: 12px sans-serif; }
+     .node { cursor: pointer; }
+     .link {
+       fill: none;
+       stroke: #ccc;
+       stroke-width: 2px;
+     }
+    </style>
+  </head>
+  <body>
+
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+ 
+  <script>
+    var tree_path = '/js/PATH_tree.json'
+    fetch(tree_path).then(res => res.json()).then(data => { 
+        var treeData = data 
+
+        const dataNodes = treeData[0].children.reduce((totalNodes, nodeInChildren) => {
+            return totalNodes + nodeInChildren.children.length; }, 0);
+        //add 20px for every node above 30 to the set height
+        const addHeight = dataNodes > 30 ? (dataNodes - 30) * 20 : 0;
+        //add additioinal height to base height
+        const canvasHeight = 900 + addHeight;
+        var margin = {top: 20, right: 120, bottom: 20, left: 120},
+         width = 14960 - margin.right - margin.left,
+         height = 20 * canvasHeight // 18500 - margin.top - margin.bottom;
+
+        var i = 0;
+        var tree = d3.layout.tree()
+         .separation(function (a, b) { return (a.parent == b.parent ? 6 : 20)})
+         .size([height, width]);
+
+        var diagonal = d3.svg.diagonal()
+         .projection(function(d) { return [d.y, d.x]; });
+
+        var svg = d3.select("body").append("svg")
+         .attr("width", width + margin.right + margin.left)
+         .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        root = treeData[0];
+        update(root);
+
+        function node_click(node) {
+            // http://127.0.0.1:5001/thr_view/image_net_thr_5_p-1p23
+            var url = "http://127.0.0.1:5001/thr_view/items_and_categories_edges_30k_thr_0_p" + node.parent.name
+            window.open(url);
+        }
+
+        function update(source) {
+          // Compute the new tree layout.
+          var nodes = tree.nodes(root).reverse(),
+           links = tree.links(nodes);
+
+          // Normalize for fixed-depth.
+          nodes.forEach(function(d) { d.y = d.depth * 180; });
+
+          // Declare the nodes¦
+          var node = svg.selectAll("g.node")
+           .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+          // Enter the nodes.
+          var nodeEnter = node.enter().append("g")
+           .on("click", node_click)
+           .attr("class", "node")
+           .attr("transform", function(d) { 
+            return "translate(" + d.y + "," + d.x + ")"; });
+
+          nodeEnter.append("circle")
+           .attr("r", 10)
+           .style("fill", "#fff");
+
+          nodeEnter.append("text")
+           .attr("x", function(d) { 
+            return d.children || d._children ? -13 : 13; })
+           .attr("dy", ".35em")
+           .attr("text-anchor", function(d) { 
+            return d.children || d._children ? "end" : "start"; })
+           .text(function(d) { return d.name + ' '+ d.count; })
+           .style("fill-opacity", 1);
+
+          // Declare the linksâ€¦
+          var link = svg.selectAll("path.link")
+           .data(links, function(d) { return d.target.id; });
+
+          // Enter the links.
+          link.enter().insert("path", "g")
+           .attr("class", "link")
+           .attr("d", diagonal);
+
+        }
+    });
+
+  </script>
+  </body>
+</html>
+
