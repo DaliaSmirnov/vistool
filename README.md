@@ -8,7 +8,7 @@
 5. run app.py
 6. open this url: http://127.0.0.1:5001/home/a
 7. upload your parquet file in "Custom Edges File:Choose file"
-   your parquet file should have 4 columns: source,target,weight,label. label descrives the source node.
+   your parquet file should have 4 columns: source,target,weight,label. label describes the source node.
    please take a look at the "dummy_data.parq" file in the repo (try to run a demo with this file)
 8. upload the file and you'll get redircted to other path, please open it.
   ("file uploaded successfully, please enter in few moments: http://127.0.0.1:5001/thr_view/dummy_data_thr_0_p-1")
